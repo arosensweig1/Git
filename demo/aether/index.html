@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AETHER — The Neural Companion</title>
+<meta name="description" content="AETHER is a neural wearable that turns thought into action. Think it. It's done." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700;900&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#05060a;
+    --bg-soft:#0b0d16;
+    --surface:rgba(255,255,255,0.03);
+    --border:rgba(255,255,255,0.08);
+    --fg:#f2f4ff;
+    --muted:#8a90a8;
+    --cyan:#22e6ff;
+    --magenta:#ff3df0;
+    --violet:#8b5cff;
+    --green:#22ff9c;
+    --display:'Orbitron',sans-serif;
+    --mono:'JetBrains Mono',monospace;
+    --sans:'Space Grotesk',sans-serif;
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--fg);
+    font-family:var(--sans);
+    line-height:1.6;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--magenta);color:#fff}
+
+  /* Background canvas + glow orbs */
+  #stars{position:fixed;inset:0;z-index:-2;display:block}
+  .orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.55;z-index:-1;pointer-events:none;animation:drift 18s ease-in-out infinite}
+  .orb.c{width:520px;height:520px;background:var(--cyan);top:-160px;left:-120px}
+  .orb.m{width:480px;height:480px;background:var(--magenta);top:30%;right:-160px;animation-delay:-6s}
+  .orb.v{width:560px;height:560px;background:var(--violet);bottom:-220px;left:30%;animation-delay:-11s}
+  @keyframes drift{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,-50px) scale(1.12)}}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  /* Nav */
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(5,6,10,.55);border-bottom:1px solid var(--border)}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .logo{font-family:var(--display);font-weight:900;letter-spacing:.32em;font-size:1.1rem;
+    background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .nav-links{display:flex;gap:32px;font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+  .nav-links a{transition:color .2s,text-shadow .2s}
+  .nav-links a:hover{color:var(--cyan);text-shadow:0 0 12px var(--cyan)}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:.82rem;font-weight:500;
+    padding:11px 20px;border-radius:10px;cursor:pointer;border:1px solid transparent;transition:transform .2s,box-shadow .2s,background .2s}
+  .btn-primary{background:linear-gradient(90deg,var(--cyan),var(--violet));color:#05060a;font-weight:600;
+    box-shadow:0 0 24px rgba(34,230,255,.35)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(139,92,255,.6)}
+  .btn-ghost{border-color:var(--border);color:var(--fg)}
+  .btn-ghost:hover{border-color:var(--cyan);box-shadow:0 0 20px rgba(34,230,255,.25)}
+  @media(max-width:720px){.nav-links{display:none}}
+
+  /* Hero */
+  header{position:relative;padding:120px 0 100px;text-align:center}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--cyan);padding:7px 16px;border:1px solid rgba(34,230,255,.35);
+    border-radius:999px;background:rgba(34,230,255,.06);margin-bottom:30px}
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  h1{font-family:var(--display);font-weight:900;line-height:1.02;font-size:clamp(2.6rem,8vw,5.6rem);
+    letter-spacing:-.01em;margin-bottom:24px}
+  h1 .grad{background:linear-gradient(120deg,var(--cyan) 10%,var(--magenta) 55%,var(--violet) 90%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 28px rgba(255,61,240,.35))}
+  .sub{max-width:620px;margin:0 auto 40px;font-size:clamp(1rem,2.4vw,1.22rem);color:var(--muted)}
+  .hero-cta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+  .scroll-hint{margin-top:64px;font-family:var(--mono);font-size:.72rem;color:var(--muted);letter-spacing:.2em}
+
+  /* Section scaffolding */
+  section{padding:90px 0;position:relative}
+  .eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.24em;text-transform:uppercase;color:var(--magenta);margin-bottom:14px}
+  .sec-title{font-family:var(--display);font-weight:700;font-size:clamp(1.8rem,4vw,2.8rem);line-height:1.1;margin-bottom:16px}
+  .sec-lead{color:var(--muted);max-width:560px;font-size:1.05rem}
+  .center{text-align:center}
+  .center .sec-lead{margin:0 auto}
+
+  /* Bento */
+  .bento{display:grid;grid-template-columns:repeat(6,1fr);gap:18px;margin-top:52px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;position:relative;
+    overflow:hidden;transition:transform .3s,border-color .3s,box-shadow .3s}
+  .card:hover{transform:translateY(-4px);border-color:rgba(34,230,255,.4);box-shadow:0 16px 50px -20px rgba(34,230,255,.4)}
+  .card::after{content:"";position:absolute;inset:0;background:radial-gradient(400px circle at var(--mx,50%) var(--my,0%),rgba(139,92,255,.14),transparent 60%);
+    opacity:0;transition:opacity .3s;pointer-events:none}
+  .card:hover::after{opacity:1}
+  .card.lg{grid-column:span 4}.card.sm{grid-column:span 2}.card.md{grid-column:span 3}
+  @media(max-width:880px){.card.lg,.card.sm,.card.md{grid-column:span 6}}
+  .icon{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;margin-bottom:20px;
+    background:rgba(34,230,255,.1);border:1px solid rgba(34,230,255,.25)}
+  .icon svg{width:24px;height:24px;stroke:var(--cyan)}
+  .card h3{font-family:var(--display);font-weight:700;font-size:1.15rem;margin-bottom:10px}
+  .card p{color:var(--muted);font-size:.95rem}
+  .stat{font-family:var(--display);font-weight:900;font-size:clamp(2.2rem,5vw,3.4rem);
+    background:linear-gradient(90deg,var(--cyan),var(--green));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat-label{font-family:var(--mono);font-size:.78rem;color:var(--muted);letter-spacing:.1em}
+
+  /* Spec readout */
+  .specs{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:center}
+  @media(max-width:880px){.specs{grid-template-columns:1fr;gap:32px}}
+  .readout{background:linear-gradient(160deg,rgba(139,92,255,.08),rgba(5,6,10,.4));
+    border:1px solid var(--border);border-radius:20px;padding:30px;font-family:var(--mono);font-size:.85rem}
+  .readout .row{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px dashed var(--border)}
+  .readout .row:last-child{border-bottom:none}
+  .readout .k{color:var(--muted)}
+  .readout .v{color:var(--cyan);text-shadow:0 0 10px rgba(34,230,255,.4)}
+  .readout .v.g{color:var(--green);text-shadow:0 0 10px rgba(34,255,156,.4)}
+  .device{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;position:relative;
+    background:radial-gradient(circle at 50% 40%,rgba(139,92,255,.25),transparent 65%)}
+  .ring{position:absolute;border-radius:50%;border:1px solid var(--border)}
+  .ring.r1{inset:8%;border-color:rgba(34,230,255,.25);animation:spin 22s linear infinite}
+  .ring.r2{inset:22%;border-color:rgba(255,61,240,.25);animation:spin 16s linear infinite reverse}
+  .ring.r3{inset:36%;border-color:rgba(139,92,255,.3);animation:spin 10s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .core{width:34%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#fff,var(--cyan) 40%,var(--violet));
+    box-shadow:0 0 60px rgba(34,230,255,.6),0 0 120px rgba(139,92,255,.4);animation:breathe 3.5s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.08);opacity:1}}
+
+  /* Pricing */
+  .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:52px}
+  @media(max-width:880px){.prices{grid-template-columns:1fr}}
+  .price{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:32px;transition:transform .3s,border-color .3s}
+  .price:hover{transform:translateY(-4px)}
+  .price.feat{border-color:var(--magenta);box-shadow:0 0 50px -18px var(--magenta);position:relative}
+  .price.feat::before{content:"MOST CHOSEN";position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.18em;background:var(--magenta);color:#05060a;
+    padding:4px 12px;border-radius:999px;font-weight:600}
+  .price .tier{font-family:var(--mono);font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .price .amt{font-family:var(--display);font-weight:900;font-size:2.6rem;margin:14px 0 4px}
+  .price .amt span{font-size:.9rem;color:var(--muted);font-family:var(--mono)}
+  .price ul{list-style:none;margin:22px 0 26px;display:flex;flex-direction:column;gap:12px}
+  .price li{font-size:.92rem;color:var(--muted);display:flex;gap:10px;align-items:flex-start}
+  .price li svg{width:17px;height:17px;stroke:var(--green);flex-shrink:0;margin-top:3px}
+  .price .btn{width:100%;justify-content:center}
+
+  /* CTA */
+  .cta-band{text-align:center;border:1px solid var(--border);border-radius:24px;padding:64px 28px;
+    background:radial-gradient(600px circle at 50% 0%,rgba(255,61,240,.14),transparent 60%),var(--bg-soft)}
+  .cta-band h2{font-family:var(--display);font-weight:900;font-size:clamp(1.9rem,5vw,3.2rem);margin-bottom:18px}
+  .cta-band .grad{background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  footer{border-top:1px solid var(--border);padding:40px 0;color:var(--muted);font-family:var(--mono);font-size:.78rem}
+  .foot-inner{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;align-items:center}
+  .foot-inner a:hover{color:var(--cyan)}
+
+  /* reveal */
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+    .reveal{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="orb c"></div><div class="orb m"></div><div class="orb v"></div>
+
+<nav>
+  <div class="wrap nav-inner">
+    <div class="logo">AETHER</div>
+    <div class="nav-links">
+      <a href="#capability">Capability</a>
+      <a href="#specs">Specs</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <a href="#pricing" class="btn btn-primary">Reserve →</a>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <span class="badge"><span class="dot"></span> Neural Interface · Gen III</span>
+    <h1>Think it.<br><span class="grad">It's done.</span></h1>
+    <p class="sub">AETHER is a featherweight neural band that reads intent and acts before you lift a finger. No screens. No taps. Just thought, translated to reality.</p>
+    <div class="hero-cta">
+      <a href="#pricing" class="btn btn-primary">Reserve your band</a>
+      <a href="#capability" class="btn btn-ghost">See how it works</a>
+    </div>
+    <div class="scroll-hint">↓ SCROLL TO INITIALIZE</div>
+  </div>
+</header>
+
+<section id="capability">
+  <div class="wrap">
+    <p class="eyebrow">Capability</p>
+    <h2 class="sec-title">A sixth sense, engineered.</h2>
+    <p class="sec-lead">Twelve dry electrodes. One neural co-processor. Sub-100ms from intent to action.</p>
+
+    <div class="bento">
+      <div class="card lg reveal">
+        <div class="icon"><svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2 1 3.5 2 5s1 3 1 4h8c0-1 0-2.5 1-4s2-3 2-5a7 7 0 0 0-7-7Z"/><path d="M9 22h6"/></svg></div>
+        <h3>Intent Decoding</h3>
+        <p>A 12-channel sensor array maps your motor intent in real time. Reach for a thought and AETHER completes the gesture — opening doors, drafting messages, cueing music — before your hand moves.</p>
+      </div>
+      <div class="card sm reveal">
+        <div class="icon"><svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg></div>
+        <div class="stat" data-count="94">0</div>
+        <div class="stat-label">% INTENT ACCURACY</div>
+      </div>
+      <div class="card sm reveal">
+        <div class="icon"><svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <div class="stat" data-count="86">0</div>
+        <div class="stat-label">MS RESPONSE</div>
+      </div>
+      <div class="card md reveal">
+        <div class="icon"><svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <h3>Ambient Awareness</h3>
+        <p>On-device context engine learns your routines and surfaces the right action for the moment — fully private, never leaves the band.</p>
+      </div>
+      <div class="card md reveal">
+        <div class="icon"><svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></div>
+        <h3>Zero-Trust Privacy</h3>
+        <p>Neural data is encrypted at the electrode and processed locally. No cloud. No telemetry. Your mind stays yours.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="specs">
+  <div class="wrap specs">
+    <div class="reveal">
+      <p class="eyebrow">Live Diagnostics</p>
+      <h2 class="sec-title">Built to disappear.</h2>
+      <p class="sec-lead" style="margin-bottom:28px">19 grams of aerospace-grade titanium and medical silicone. Charges in the time it takes to shower. Reads you for 30 hours straight.</p>
+      <div class="readout">
+        <div class="row"><span class="k">// neural_link</span><span class="v g">● ONLINE</span></div>
+        <div class="row"><span class="k">// channels_active</span><span class="v">12 / 12</span></div>
+        <div class="row"><span class="k">// battery_life</span><span class="v">30 HRS</span></div>
+        <div class="row"><span class="k">// weight</span><span class="v">19 G</span></div>
+        <div class="row"><span class="k">// charge_time</span><span class="v">8 MIN → 80%</span></div>
+        <div class="row"><span class="k">// water_rating</span><span class="v">IP68</span></div>
+        <div class="row"><span class="k">// data_egress</span><span class="v g">0 BYTES</span></div>
+      </div>
+    </div>
+    <div class="device reveal">
+      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+      <div class="core"></div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap center">
+    <p class="eyebrow">Reserve</p>
+    <h2 class="sec-title">Claim your edition.</h2>
+    <p class="sec-lead">Limited Gen III run. Fully refundable deposit until ship.</p>
+    <div class="prices">
+      <div class="price reveal">
+        <div class="tier">Core</div>
+        <div class="amt">$0<span>/deposit</span></div>
+        <ul>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> AETHER band, graphite</li>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Intent decoding suite</li>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> 30-hour battery</li>
+        </ul>
+        <a href="#" class="btn btn-ghost">Reserve Core</a>
+      </div>
+      <div class="price feat reveal">
+        <div class="tier">Signature</div>
+        <div class="amt">$49<span>/deposit</span></div>
+        <ul>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Titanium band, 4 finishes</li>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Ambient context engine</li>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Priority Gen III shipment</li>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Lifetime neural updates</li>
+        </ul>
+        <a href="#" class="btn btn-primary">Reserve Signature</a>
+      </div>
+      <div class="price reveal">
+        <div class="tier">Founders</div>
+        <div class="amt">$199<span>/deposit</span></div>
+        <ul>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Everything in Signature</li>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Engraved serial #001–500</li>
+          <li><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Direct line to the lab</li>
+        </ul>
+        <a href="#" class="btn btn-ghost">Reserve Founders</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cta-band reveal">
+      <h2>Stop reaching.<br><span class="grad">Start intending.</span></h2>
+      <p class="sec-lead" style="margin:0 auto 28px">Join 40,000 on the waitlist for the interface that ends the interface.</p>
+      <a href="#pricing" class="btn btn-primary" style="font-size:.95rem;padding:14px 28px">Reserve your band →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div class="logo" style="font-size:.95rem">AETHER</div>
+    <div>A fictional concept · built with ui-ux-pro-max</div>
+    <div style="display:flex;gap:20px">
+      <a href="#capability">Capability</a><a href="#specs">Specs</a><a href="#pricing">Pricing</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Starfield */
+  var cv = document.getElementById('stars'), ctx = cv.getContext('2d'), stars = [], W, H;
+  function size(){ W = cv.width = innerWidth; H = cv.height = innerHeight; build(); }
+  function build(){ stars = []; var n = Math.min(140, Math.floor(W*H/14000));
+    for(var i=0;i<n;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.4+.3,
+      a:Math.random(),s:Math.random()*.015+.004}); }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(var i=0;i<stars.length;i++){var st=stars[i]; st.a+=st.s; var tw=.4+Math.abs(Math.sin(st.a))*.6;
+      ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,6.28);
+      ctx.fillStyle='rgba(190,210,255,'+tw+')'; ctx.fill();}
+    requestAnimationFrame(draw);
+  }
+  size(); addEventListener('resize',size);
+  if(!reduce) draw(); else { for(var i=0;i<stars.length;i++){var st=stars[i];
+    ctx.beginPath();ctx.arc(st.x,st.y,st.r,0,6.28);ctx.fillStyle='rgba(190,210,255,.6)';ctx.fill();} }
+
+  /* Scroll reveal */
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+  },{threshold:.15});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+
+  /* Count-up stats */
+  function countUp(el){
+    var target = +el.dataset.count, t0 = null, dur = 1400;
+    function step(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/dur,1);
+      el.textContent = Math.floor((1-Math.pow(1-p,3))*target); if(p<1) requestAnimationFrame(step); else el.textContent=target; }
+    requestAnimationFrame(step);
+  }
+  var sObs = new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ reduce ? e.target.textContent=e.target.dataset.count : countUp(e.target); sObs.unobserve(e.target);} });
+  },{threshold:.6});
+  document.querySelectorAll('.stat[data-count]').forEach(function(el){ sObs.observe(el); });
+
+  /* Card spotlight */
+  if(!reduce) document.querySelectorAll('.card').forEach(function(c){
+    c.addEventListener('mousemove',function(e){ var r=c.getBoundingClientRect();
+      c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); });
+  });
+})();
+</script>
+</body>
+</html>
