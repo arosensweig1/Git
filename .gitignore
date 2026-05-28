@@ -51,3 +51,8 @@ out/
 .claude/settings.local.json
 .claude/session-state/
 ui-ux-pro-max-website/*
+
+# transient render artifacts
+node_modules/
+demo/**/node_modules/
+demo/**/*.png

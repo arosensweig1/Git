@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>JARVIS · ECM Prospecting Terminal</title>
+<meta name="description" content="Jarvis — ECM prospecting terminal (demo). Dark neon Bloomberg-style cockpit." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#04050a; --panel:#0a0c14; --panel2:#0e1019; --surface:rgba(255,255,255,.03);
+    --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.14);
+    --fg:#e8ecf8; --muted:#7c8197;
+    --cyan:#22e6ff; --magenta:#ff3df0; --violet:#8b5cff; --green:#27e08a; --red:#ff4d5e; --amber:#ffb547;
+    --display:'Orbitron',sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:13px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--magenta);color:#04050a}
+  button{font-family:var(--mono);cursor:pointer}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#232737;border-radius:6px}
+  #fx{position:fixed;inset:0;z-index:-2}
+  .orb{position:fixed;border-radius:50%;filter:blur(110px);opacity:.4;z-index:-1;pointer-events:none}
+  .orb.c{width:480px;height:480px;background:var(--cyan);top:-160px;left:-120px}
+  .orb.m{width:420px;height:420px;background:var(--magenta);bottom:-160px;right:-120px}
+  .grad{background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .neon{text-shadow:0 0 10px currentColor}
+
+  /* generic */
+  .screen{display:none;min-height:100vh}
+  .screen.active{display:block}
+  .center-screen{display:none;min-height:100vh;place-items:center;padding:24px}
+  .center-screen.active{display:grid}
+  .up{color:var(--green)}.down{color:var(--red)}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:10.5px;
+    letter-spacing:.08em;border:1px solid var(--border2)}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .dot.g{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .dot.r{background:var(--red);box-shadow:0 0 8px var(--red)}
+  .dot.a{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  .blink{animation:blink 1.6s infinite}@keyframes blink{50%{opacity:.25}}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:500;padding:10px 18px;border-radius:9px;
+    border:1px solid var(--border2);background:transparent;color:var(--fg);transition:.18s}
+  .btn:hover{border-color:var(--cyan);box-shadow:0 0 16px rgba(34,230,255,.25)}
+  .btn.primary{background:linear-gradient(90deg,var(--cyan),var(--violet));color:#04050a;font-weight:700;border:none;
+    box-shadow:0 0 22px rgba(34,230,255,.35)}
+  .btn.primary:hover{transform:translateY(-1px);box-shadow:0 0 34px rgba(139,92,255,.55)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none}
+  label.fld{display:block;margin-bottom:14px}
+  label.fld span{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  input,select{width:100%;background:#070810;border:1px solid var(--border2);color:var(--fg);font-family:var(--mono);
+    font-size:13px;padding:11px 13px;border-radius:8px;outline:none;transition:.18s}
+  input:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,230,255,.12)}
+
+  /* brand */
+  .brand{font-family:var(--display);font-weight:900;letter-spacing:.34em}
+
+  /* LOGIN */
+  .auth-card{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--border);border-radius:18px;
+    padding:38px 34px;box-shadow:0 30px 80px -30px rgba(34,230,255,.3)}
+  .auth-card .brand{font-size:1.5rem;display:block;text-align:center;margin-bottom:6px}
+  .auth-sub{text-align:center;color:var(--muted);font-size:11px;letter-spacing:.1em;margin-bottom:26px}
+  .demohint{margin-top:16px;font-size:10.5px;color:var(--muted);text-align:center;line-height:1.7}
+  .demohint code{color:var(--cyan);background:rgba(34,230,255,.08);padding:1px 6px;border-radius:5px}
+  .err{color:var(--red);font-size:11px;margin-top:10px;min-height:14px}
+  .warnbar{font-size:10.5px;color:var(--amber);border:1px solid rgba(255,181,71,.3);background:rgba(255,181,71,.06);
+    padding:9px 12px;border-radius:8px;margin-bottom:22px;line-height:1.6}
+
+  /* CONNECT */
+  .connect-wrap{width:100%;max-width:860px}
+  .connect-wrap h2{font-family:var(--display);font-weight:700;font-size:1.4rem;text-align:center;margin-bottom:6px}
+  .connect-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:26px 0}
+  @media(max-width:720px){.connect-grid{grid-template-columns:1fr}}
+  .vcard{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:22px}
+  .vcard .vhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .vcard .vname{font-family:var(--display);font-weight:700;font-size:1rem}
+  .vcard .ref{font-size:10px;color:var(--muted);margin-top:14px;line-height:1.6}
+  .vcard .ref a{color:var(--cyan)}
+
+  /* APP SHELL */
+  .topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;
+    height:54px;padding:0 18px;background:rgba(5,6,12,.7);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+  .topbar .brand{font-size:.95rem}
+  .ticker-tape{flex:1;overflow:hidden;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+  .tape-track{display:inline-block;animation:tape 38s linear infinite}
+  @keyframes tape{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .tape-item{display:inline-flex;gap:7px;margin:0 18px;font-size:11.5px}
+  .tape-item b{color:var(--fg)}
+  .clock{font-size:11px;color:var(--muted)}
+  .statusbar{display:flex;gap:18px;align-items:center;padding:7px 18px;border-bottom:1px solid var(--border);
+    background:var(--panel2);font-size:10.5px;letter-spacing:.06em;color:var(--muted);flex-wrap:wrap}
+
+  .container{max-width:1280px;margin:0 auto;padding:18px}
+
+  /* BLOTTER */
+  .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .toolbar input,.toolbar select{width:auto;min-width:150px;padding:8px 11px}
+  .toolbar .spacer{flex:1}
+  .count-chip{font-size:11px;color:var(--muted)}
+  .count-chip b{color:var(--cyan)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{position:sticky;top:0;text-align:left;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--border2);background:var(--panel2);cursor:pointer;white-space:nowrap}
+  thead th:hover{color:var(--cyan)}
+  thead th .arr{opacity:.4}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--border)}
+  tbody tr{transition:background .12s}
+  tbody tr:hover{background:rgba(34,230,255,.05);cursor:pointer}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tk{color:var(--cyan);font-weight:700}
+  .setbadge{font-size:9.5px;padding:2px 7px;border-radius:5px;border:1px solid var(--border2)}
+  .setbadge.A{color:var(--magenta);border-color:rgba(255,61,240,.4)}
+  .setbadge.B{color:var(--cyan);border-color:rgba(34,230,255,.4)}
+  .setbadge.both{color:var(--violet);border-color:rgba(139,92,255,.4)}
+  .esrc{font-size:9.5px;letter-spacing:.05em}
+  .esrc.capiq{color:var(--cyan)}.esrc.verified{color:var(--green)}.esrc.guessed{color:var(--amber)}.esrc.manual{color:var(--muted)}
+
+  /* DASHBOARD */
+  .dash-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:8px}
+  .dash-head .nm{font-family:var(--display);font-weight:700;font-size:1.5rem}
+  .dash-head .meta{color:var(--muted);font-size:11.5px;margin-top:4px}
+  .price-big{font-family:var(--display);font-weight:900;font-size:2rem;font-variant-numeric:tabular-nums}
+  .grid-dash{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:16px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:16px}
+  .panel h3{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;
+    display:flex;align-items:center;gap:8px}
+  .panel h3::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+  .col-4{grid-column:span 4}.col-5{grid-column:span 5}.col-6{grid-column:span 6}.col-7{grid-column:span 7}
+  .col-8{grid-column:span 8}.col-12{grid-column:span 12}
+  @media(max-width:900px){.col-4,.col-5,.col-6,.col-7,.col-8{grid-column:span 12}}
+  .kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--border)}
+  .kv:last-child{border:none}.kv .k{color:var(--muted)}.kv .v{font-variant-numeric:tabular-nums}
+  .mini-table{width:100%;font-size:11.5px}
+  .mini-table td{padding:5px 0;border-bottom:1px dashed var(--border)}
+  .exec{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border)}
+  .exec:last-child{border:none}
+  .exec .role{font-size:9.5px;color:var(--muted);letter-spacing:.1em}
+  .news-item{padding:8px 0;border-bottom:1px dashed var(--border);display:block}
+  .news-item:last-child{border:none}.news-item:hover .nh{color:var(--cyan)}
+  .news-item .nd{font-size:10px;color:var(--muted)}
+  .news-item .nh{font-size:12px}
+  .holder-row{display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0}
+  canvas.chart{width:100%;height:240px;display:block}
+  .chart-meta{font-size:10px;color:var(--muted);margin-top:6px;display:flex;gap:14px}
+
+  /* MODAL */
+  .modal-bg{position:fixed;inset:0;background:rgba(2,3,7,.74);backdrop-filter:blur(4px);z-index:100;display:none;
+    place-items:center;padding:24px}
+  .modal-bg.open{display:grid}
+  .modal{width:100%;max-width:640px;max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--border2);
+    border-radius:16px;padding:24px;box-shadow:0 30px 90px -20px rgba(139,92,255,.5)}
+  .modal h3{font-family:var(--display);font-weight:700;margin-bottom:4px}
+  .modal textarea{width:100%;min-height:300px;background:#070810;border:1px solid var(--border2);color:var(--fg);
+    font-family:var(--mono);font-size:12px;line-height:1.6;padding:14px;border-radius:9px;resize:vertical}
+  .mode-tabs{display:flex;gap:8px;margin:14px 0}
+  .mode-tab{padding:7px 14px;border-radius:8px;border:1px solid var(--border2);font-size:11px;background:transparent;color:var(--muted)}
+  .mode-tab.on{color:#04050a;background:var(--cyan);border-color:var(--cyan);font-weight:700}
+  .compliance{font-size:10px;color:var(--amber);border:1px solid rgba(255,181,71,.3);background:rgba(255,181,71,.06);
+    padding:9px 12px;border-radius:8px;margin:14px 0;line-height:1.6}
+  .modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--panel2);
+    border:1px solid var(--cyan);color:var(--fg);padding:11px 20px;border-radius:10px;font-size:12px;z-index:200;
+    box-shadow:0 0 24px rgba(34,230,255,.3);transition:transform .3s;opacity:0}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .footnote{text-align:center;color:var(--muted);font-size:10px;padding:24px;line-height:1.8}
+
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas><div class="orb c"></div><div class="orb m"></div>
+
+<!-- ========== LOGIN ========== -->
+<div class="center-screen active" id="s-login">
+  <div class="auth-card">
+    <span class="brand grad">JARVIS</span>
+    <div class="auth-sub">ECM PROSPECTING TERMINAL · A.G.P.</div>
+    <div class="warnbar">⚠ DEMO BUILD — cosmetic login only, no real authentication or live data. Never use this static page to gate real broker-dealer data or enter real credentials.</div>
+    <form id="loginForm" autocomplete="off">
+      <label class="fld"><span>Username</span><input id="u" type="text" placeholder="username" /></label>
+      <label class="fld"><span>Password</span><input id="p" type="password" placeholder="••••••••" /></label>
+      <button class="btn primary" style="width:100%;justify-content:center" type="submit">Authenticate →</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+    <div class="demohint">Demo access — user <code>demo</code> · pass <code>demo</code></div>
+  </div>
+</div>
+
+<!-- ========== CONNECT ========== -->
+<div class="center-screen" id="s-connect">
+  <div class="connect-wrap">
+    <h2>Connect your data sources</h2>
+    <div class="auth-sub">API credentials are provisioned separately by your firm admin / S&amp;P rep — not the web-portal login.</div>
+    <div class="connect-grid">
+      <div class="vcard">
+        <div class="vhead"><span class="vname">Capital IQ</span><span class="pill" id="capiqStatus"><span class="dot a"></span> NOT CONNECTED</span></div>
+        <label class="fld"><span>Base URL</span><input placeholder="https://api.capitaliq..." /></label>
+        <label class="fld"><span>API Username</span><input placeholder="api user" /></label>
+        <label class="fld"><span>API Password / Key</span><input type="password" placeholder="••••••••" /></label>
+        <button class="btn" style="width:100%;justify-content:center" onclick="demoConnect('capiq')">Connect Cap IQ</button>
+        <div class="ref">Sole market-data source. Portal (reference only): <a href="https://www.capitaliq.spglobal.com/web/login" target="_blank" rel="noopener">capitaliq.spglobal.com</a></div>
+      </div>
+      <div class="vcard">
+        <div class="vhead"><span class="vname">DealCloud</span><span class="pill" id="dcStatus"><span class="dot a"></span> NOT CONNECTED</span></div>
+        <label class="fld"><span>Site URL</span><input placeholder="https://yourfirm.dealcloud.com" /></label>
+        <label class="fld"><span>Client ID</span><input placeholder="client id" /></label>
+        <label class="fld"><span>Client Secret</span><input type="password" placeholder="••••••••" /></label>
+        <button class="btn" style="width:100%;justify-content:center" onclick="demoConnect('dc')">Connect DealCloud</button>
+        <div class="ref">CRM coverage (or upload <code>Deal_CLoud.xlsx</code>). Portal: <a href="https://app.dealcloud.com/Account/login" target="_blank" rel="noopener">app.dealcloud.com</a></div>
+      </div>
+    </div>
+    <div style="text-align:center">
+      <button class="btn primary" id="enterBtn" disabled onclick="enterJarvis()">Enter Jarvis →</button>
+      <div class="demohint">Demo mode: clicking either "Connect" simulates a successful API handshake.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== APP ========== -->
+<div class="screen" id="s-app">
+  <div class="topbar">
+    <span class="brand grad">JARVIS</span>
+    <div class="ticker-tape"><div class="tape-track" id="tape"></div></div>
+    <span class="clock" id="clock"></span>
+    <button class="btn" style="padding:7px 12px" onclick="logout()">Logout</button>
+  </div>
+  <div class="statusbar">
+    <span><span class="dot g blink"></span> CAP IQ: <b style="color:var(--green)">LIVE</b> <span id="lastUpd"></span></span>
+    <span><span class="dot g"></span> DEALCLOUD: SNAPSHOT</span>
+    <span id="counts"></span>
+    <span style="color:var(--amber)">● DEMO DATA</span>
+  </div>
+
+  <!-- BLOTTER -->
+  <div class="container" id="v-blotter">
+    <div class="toolbar">
+      <input id="search" placeholder="Search company / ticker…" oninput="renderBlotter()" />
+      <select id="fExch" onchange="renderBlotter()">
+        <option value="">All exchanges</option><option>NASDAQ</option><option>NYSE</option><option>NYSE American</option>
+      </select>
+      <select id="fSet" onchange="renderBlotter()">
+        <option value="">All sets</option><option value="A">A · CRM revival</option><option value="B">B · fresh small-cap</option><option value="both">Both</option>
+      </select>
+      <select id="fCap" onchange="renderBlotter()">
+        <option value="">Any market cap</option><option value="micro">&lt; $50M</option><option value="small">$50M–$250M</option><option value="mid">$250M–$500M</option>
+      </select>
+      <span class="spacer"></span>
+      <span class="count-chip" id="blotterCount"></span>
+    </div>
+    <div style="overflow:auto;border:1px solid var(--border);border-radius:12px">
+      <table id="blotterTable">
+        <thead><tr>
+          <th onclick="sortBy('company')">Company <span class="arr"></span></th>
+          <th onclick="sortBy('ticker')">Ticker</th>
+          <th onclick="sortBy('exchange')">Exch</th>
+          <th class="num" onclick="sortBy('mktcap')">Mkt Cap</th>
+          <th class="num" onclick="sortBy('price')">Price</th>
+          <th class="num" onclick="sortBy('chg')">Chg%</th>
+          <th onclick="sortBy('ceo')">CEO</th>
+          <th onclick="sortBy('cfo')">CFO</th>
+          <th>Email Src</th>
+          <th onclick="sortBy('source_set')">Set</th>
+          <th>Reason</th>
+        </tr></thead>
+        <tbody id="blotterBody"></tbody>
+      </table>
+    </div>
+    <div class="footnote">Final list = (CRM revival &gt; 24mo) ∪ (Cap IQ small-cap &lt; $500M) − (covered within 24mo). Demo data for illustration only.</div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="container" id="v-dash" style="display:none"></div>
+</div>
+
+<!-- EMAIL MODAL -->
+<div class="modal-bg" id="emailModal">
+  <div class="modal">
+    <h3>Draft email <span id="emailCo" class="grad"></span></h3>
+    <div style="font-size:11px;color:var(--muted)">Review only — Jarvis never sends.</div>
+    <div class="mode-tabs">
+      <button class="mode-tab on" id="tabGeneral" onclick="setEmailMode('general')">General intro</button>
+      <button class="mode-tab" id="tabTailored" onclick="setEmailMode('tailored')">Tailored (news)</button>
+    </div>
+    <label class="fld"><span>Subject</span><input id="emailSubject" /></label>
+    <textarea id="emailBody"></textarea>
+    <div class="compliance">Drafts for review only. Outbound communications are subject to A.G.P. supervisory review under FINRA Rule 2210 before sending.</div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="copyEmail()">Copy</button>
+      <button class="btn" onclick="downloadEml()">Download .eml</button>
+      <button class="btn" onclick="queueCsv()">Add to outreach queue (CSV)</button>
+      <button class="btn" style="margin-left:auto" onclick="closeEmail()">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== DEMO DATA ===================== */
+var FIRST=["James","Sarah","Michael","Linda","David","Karen","Robert","Emily","Daniel","Rachel","Thomas","Nicole","Brian","Laura","Kevin"];
+var LAST=["Whitfield","Castellano","Okafor","Bergstrom","Nakamura","Delgado","Hartley","Petrov","Sangster","Yablonski","Crane","Mercado","Ashford","Vance","Lindqvist"];
+function rng(seed){var s=seed%2147483647;if(s<=0)s+=2147483646;return function(){s=s*16807%2147483647;return (s-1)/2147483646;};}
+function hashStr(s){var h=0;for(var i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i);h|=0;}return Math.abs(h);}
+
+var SEED=[
+ ["Helios Biosciences","HLBX","NASDAQ","Biotech",false],
+ ["Cortex Robotics","CRTX","NASDAQ","Industrial Tech",false],
+ ["Brightline Energy","BRLE","NYSE American","Clean Energy",false],
+ ["Aster Mining","ASTM","NYSE American","Materials",true],
+ ["Nimbus Cloud Systems","NMBS","NASDAQ","Software",false],
+ ["Vanta Therapeutics","VNTA","NASDAQ","Biotech",false],
+ ["Ironwood Logistics","IRWD","NYSE","Logistics",false],
+ ["Solace Medical","SLCM","NASDAQ","MedTech",true],
+ ["Quartz Semiconductor","QRTZ","NASDAQ","Semiconductors",false],
+ ["Meridian Fintech","MRDN","NYSE","Fintech",false],
+ ["Polar Defense Systems","PLDS","NYSE American","Defense",false],
+ ["Cedar Grove Foods","CDGF","NASDAQ","Consumer",true],
+ ["Lumen Diagnostics","LMDX","NASDAQ","Diagnostics",false],
+ ["Atlas Offshore","ATOF","NYSE","Energy",false],
+ ["Sable Networks","SABL","NASDAQ","Telecom",false],
+ ["Verdant AgriTech","VRDA","NYSE American","AgTech",false],
+ ["Orion Space Labs","ORSL","NASDAQ","Aerospace",false],
+ ["Kestrel Pharmaceuticals","KSTL","NASDAQ","Pharma",true]
+];
+
+function buildCompany(row){
+  var name=row[0],tk=row[1],exch=row[2],sector=row[3],isB=row[4];
+  var r=rng(hashStr(tk));
+  var price=+(0.8+r()*38).toFixed(2);
+  var mktcap=Math.round((8+r()*470)*1e6);
+  var chg=+((r()-0.45)*9).toFixed(2);
+  // exec
+  function person(){return {name:FIRST[Math.floor(r()*FIRST.length)]+" "+LAST[Math.floor(r()*LAST.length)]};}
+  var ceo=person(),cfo=person();
+  var domain=tk.toLowerCase()+".com";
+  var esrcPool=["capiq","verified","guessed","manual"];
+  var esrc=esrcPool[Math.floor(r()*4)];
+  function email(p){if(esrc==="manual")return "";var fn=p.name.split(" ")[0].toLowerCase(),ln=p.name.split(" ")[1].toLowerCase();return (esrc==="guessed"?fn[0]+ln:fn+"."+ln)+"@"+domain;}
+  ceo.title="Chief Executive Officer";cfo.title="Chief Financial Officer";
+  ceo.email=email(ceo);cfo.email=email(cfo);
+  // 30d price series
+  var closes=[],p0=price*(0.7+r()*0.5);for(var i=0;i<30;i++){p0=Math.max(0.4,p0*(1+(r()-0.5)*0.08));closes.push(+p0.toFixed(2));}
+  closes[29]=price;
+  var last5=closes.slice(-5);
+  var vwap5=last5.map(function(c){return +(c*(0.985+r()*0.03)).toFixed(2);});
+  // holders
+  var instNames=["Vanguard Grp","BlackRock Inc","State Street","Renaissance Tech","Geode Capital","Susquehanna","Citadel Advisors","Millennium Mgmt","Point72","D.E. Shaw"];
+  var holders=instNames.map(function(n){return {n:n,pct:+(r()*9+0.3).toFixed(2)};}).sort(function(a,b){return b.pct-a.pct;});
+  // balance sheet
+  var cash=Math.round((2+r()*60)*1e6),debt=Math.round(r()*55*1e6);
+  // financing
+  var ftypes=["registered direct","PIPE","ATM program","follow-on offering","equity line (ELOC)"];
+  var fin={type:ftypes[Math.floor(r()*ftypes.length)],amt:Math.round((4+r()*45)),mo:["Jan","Feb","Mar","Apr","May","Jun","Sep","Oct","Nov"][Math.floor(r()*9)],yr:2024+Math.floor(r()*2)};
+  // news
+  var heads=[name+" reports Q"+(1+Math.floor(r()*4))+" results, narrows guidance",
+    name+" announces strategic review of "+sector.toLowerCase()+" assets",
+    name+" closes $"+fin.amt+"M "+fin.type,
+    "Analyst initiates coverage on "+tk+" with Buy rating",
+    name+" appoints new "+(r()>0.5?"COO":"Chief Commercial Officer")];
+  var news=heads.slice(0,5).map(function(h,i){return {h:h,d:fin.yr+"-"+String(1+Math.floor(r()*12)).padStart(2,"0")+"-"+String(1+Math.floor(r()*27)).padStart(2,"0")};})
+    .sort(function(a,b){return a.d<b.d?1:-1;});
+  // analyst
+  var avg=+(price*(1.05+r()*0.6)).toFixed(2);
+  var analyst={high:+(avg*1.25).toFixed(2),low:+(avg*0.7).toFixed(2),avg:avg,rating:["Strong Buy","Buy","Hold","Buy","Overweight"][Math.floor(r()*5)],note:(r()>0.5?"Upgrade":"Reiterate")+" — "+["Cantor","Roth","Maxim","Lake Street","B. Riley"][Math.floor(r()*5)]};
+  // source set / reason
+  var inCRM=r()>0.45;
+  var months=Math.floor(25+r()*40);
+  var source_set, reason, banker=null;
+  if(inCRM && isB){source_set="both";banker=person().name;reason="CRM revival: last outreach "+months+"mo ago; also sub-$500M "+exch;}
+  else if(inCRM){source_set="A";banker=person().name;reason="CRM revival: last outreach "+months+"mo ago (> 24 months)";}
+  else {source_set="B";reason="Sub-$500M "+exch+" small-cap";}
+  return {name:name,ticker:tk,exchange:exch,sector:sector,price:price,mktcap:mktcap,chg:chg,
+    ceo:ceo,cfo:cfo,esrc:esrc,domain:domain,closes:closes,last5:last5,vwap5:vwap5,holders:holders,
+    cash:cash,debt:debt,fin:fin,news:news,analyst:analyst,source_set:source_set,reason:reason,banker:banker};
+}
+var COMPANIES=SEED.map(buildCompany);
+
+/* ===================== HELPERS ===================== */
+function $(id){return document.getElementById(id);}
+function fmtCap(v){if(v>=1e9)return "$"+(v/1e9).toFixed(2)+"B";if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";return "$"+v;}
+function fmtMoney(v){return "$"+v.toLocaleString("en-US");}
+function chgCls(c){return c>=0?"up":"down";}
+function chgStr(c){return (c>=0?"+":"")+c.toFixed(2)+"%";}
+function toast(msg){var t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove("show");},2200);}
+
+/* ===================== SCREEN FLOW ===================== */
+function show(id){["s-login","s-connect"].forEach(function(s){var el=$(s);el.classList.toggle("active",s===id);});
+  $("s-app").classList.toggle("active",id==="s-app");}
+
+$("loginForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  var u=$("u").value.trim().toLowerCase(),p=$("p").value;
+  if(u==="demo"&&p==="demo"){ $("loginErr").textContent=""; show("s-connect"); }
+  else { $("loginErr").textContent="Invalid demo credentials. Use demo / demo."; }
+});
+var conn={capiq:false,dc:false};
+function demoConnect(which){
+  conn[which]=true;
+  var el=$(which==="capiq"?"capiqStatus":"dcStatus");
+  el.innerHTML='<span class="dot g"></span> CONNECTED';
+  if(conn.capiq){ $("enterBtn").disabled=false; }
+}
+function enterJarvis(){ show("s-app"); startApp(); }
+function logout(){ conn={capiq:false,dc:false}; $("capiqStatus").innerHTML='<span class="dot a"></span> NOT CONNECTED';
+  $("dcStatus").innerHTML='<span class="dot a"></span> NOT CONNECTED'; $("enterBtn").disabled=true;
+  $("u").value="";$("p").value=""; show("s-login"); window.scrollTo(0,0); }
+
+/* ===================== APP START ===================== */
+var sortKey="mktcap",sortDir=1;
+function startApp(){
+  // counts
+  var a=COMPANIES.filter(function(c){return c.source_set==="A";}).length;
+  var b=COMPANIES.filter(function(c){return c.source_set==="B";}).length;
+  var both=COMPANIES.filter(function(c){return c.source_set==="both";}).length;
+  $("counts").innerHTML="SET A: <b style='color:var(--magenta)'>"+(a+both)+"</b> · SET B: <b style='color:var(--cyan)'>"+(b+both)+"</b> · FINAL: <b style='color:var(--green)'>"+COMPANIES.length+"</b>";
+  // tape
+  var tape=COMPANIES.concat(COMPANIES).map(function(c){
+    return '<span class="tape-item"><b>'+c.ticker+'</b> '+c.price.toFixed(2)+' <span class="'+chgCls(c.chg)+'">'+chgStr(c.chg)+'</span></span>';
+  }).join("");
+  $("tape").innerHTML=tape;
+  renderBlotter();
+  tickClock();setInterval(tickClock,1000);
+  setInterval(livePulse,5000);
+}
+function tickClock(){var d=new Date();$("clock").textContent=d.toLocaleTimeString("en-US",{hour12:false})+" ET";}
+function livePulse(){
+  // jitter prices slightly to simulate live feed
+  COMPANIES.forEach(function(c){var j=(Math.random()-0.5)*0.4;c.price=Math.max(0.3,+(c.price*(1+j/100)).toFixed(2));c.chg=+(c.chg+j).toFixed(2);});
+  $("lastUpd").textContent="· upd "+new Date().toLocaleTimeString("en-US",{hour12:false});
+  if($("v-blotter").style.display!=="none")renderBlotter();
+  // refresh tape
+  $("tape").innerHTML=COMPANIES.concat(COMPANIES).map(function(c){return '<span class="tape-item"><b>'+c.ticker+'</b> '+c.price.toFixed(2)+' <span class="'+chgCls(c.chg)+'">'+chgStr(c.chg)+'</span></span>';}).join("");
+}
+
+/* ===================== BLOTTER ===================== */
+function sortBy(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1;}renderBlotter();}
+function capBand(v){if(v<50e6)return "micro";if(v<250e6)return "small";return "mid";}
+function renderBlotter(){
+  var q=$("search").value.trim().toLowerCase(),fe=$("fExch").value,fs=$("fSet").value,fc=$("fCap").value;
+  var rows=COMPANIES.filter(function(c){
+    if(q && c.name.toLowerCase().indexOf(q)<0 && c.ticker.toLowerCase().indexOf(q)<0)return false;
+    if(fe && c.exchange!==fe)return false;
+    if(fs && c.source_set!==fs)return false;
+    if(fc && capBand(c.mktcap)!==fc)return false;
+    return true;
+  });
+  rows.sort(function(a,b){var x,y;
+    switch(sortKey){case "ceo":x=a.ceo.name;y=b.ceo.name;break;case "cfo":x=a.cfo.name;y=b.cfo.name;break;
+      default:x=a[sortKey];y=b[sortKey];}
+    if(typeof x==="string")return x.localeCompare(y)*sortDir;return (x-y)*sortDir;});
+  var html=rows.map(function(c){
+    return '<tr onclick="openDash(\''+c.ticker+'\')">'+
+      '<td>'+c.name+'</td>'+
+      '<td class="tk">'+c.ticker+'</td>'+
+      '<td style="color:var(--muted)">'+c.exchange+'</td>'+
+      '<td class="num">'+fmtCap(c.mktcap)+'</td>'+
+      '<td class="num">'+c.price.toFixed(2)+'</td>'+
+      '<td class="num '+chgCls(c.chg)+'">'+chgStr(c.chg)+'</td>'+
+      '<td>'+c.ceo.name+'</td>'+
+      '<td>'+c.cfo.name+'</td>'+
+      '<td><span class="esrc '+c.esrc+'">'+c.esrc.toUpperCase()+'</span></td>'+
+      '<td><span class="setbadge '+c.source_set+'">'+c.source_set.toUpperCase()+'</span></td>'+
+      '<td style="color:var(--muted);font-size:10.5px;max-width:240px">'+c.reason+'</td>'+
+    '</tr>';
+  }).join("");
+  $("blotterBody").innerHTML=html||'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">No matches</td></tr>';
+  $("blotterCount").innerHTML="<b>"+rows.length+"</b> companies";
+}
+
+/* ===================== DASHBOARD ===================== */
+function get(tk){return COMPANIES.filter(function(c){return c.ticker===tk;})[0];}
+function backToList(){$("v-dash").style.display="none";$("v-blotter").style.display="block";window.scrollTo(0,0);}
+function openDash(tk){
+  var c=get(tk);
+  $("v-blotter").style.display="none";var d=$("v-dash");d.style.display="block";window.scrollTo(0,0);
+  function emailLine(p){if(!p.email)return '<span style="color:var(--muted)">— manual entry —</span>';
+    var cls=c.esrc;var warn=c.esrc==="guessed"?' <span style="color:var(--amber)">⚠ UNVERIFIED</span>':'';
+    return '<span class="'+cls+'" style="color:var(--cyan)">'+p.email+'</span>'+warn;}
+  d.innerHTML=
+   '<button class="btn" onclick="backToList()">← Back to blotter</button>'+
+   '<div class="dash-head" style="margin-top:14px">'+
+     '<div><div class="nm">'+c.name+' <span class="tk">'+c.ticker+'</span></div>'+
+       '<div class="meta">'+c.exchange+' · '+c.sector+' · '+fmtCap(c.mktcap)+' mkt cap · <span class="setbadge '+c.source_set+'">'+c.source_set.toUpperCase()+'</span></div></div>'+
+     '<div style="text-align:right"><div class="price-big">'+c.price.toFixed(2)+'</div>'+
+       '<div class="'+chgCls(c.chg)+'" style="font-size:14px">'+chgStr(c.chg)+' today</div></div>'+
+   '</div>'+
+   '<div style="margin:10px 0"><button class="btn primary" onclick="openEmail(\''+c.ticker+'\')">✉ Draft email</button></div>'+
+   '<div class="grid-dash">'+
+     // chart
+     '<div class="panel col-8"><h3>Price · 30 sessions</h3><canvas class="chart" id="chartCv"></canvas>'+
+       '<div class="chart-meta"><span>Last 5 close: '+c.last5.map(function(x){return x.toFixed(2);}).join(" · ")+'</span></div></div>'+
+     // execs + email
+     '<div class="panel col-4"><h3>Coverage contacts</h3>'+
+       '<div class="exec"><div><div>'+c.ceo.name+'</div><div class="role">CHIEF EXECUTIVE OFFICER</div></div></div>'+
+       '<div style="font-size:11.5px;margin:4px 0 12px">'+emailLine(c.ceo)+' <span style="color:var(--muted)">['+c.esrc+']</span></div>'+
+       '<div class="exec"><div><div>'+c.cfo.name+'</div><div class="role">CHIEF FINANCIAL OFFICER</div></div></div>'+
+       '<div style="font-size:11.5px;margin-top:4px">'+emailLine(c.cfo)+' <span style="color:var(--muted)">['+c.esrc+']</span></div>'+
+     '</div>'+
+     // price block
+     '<div class="panel col-4"><h3>Price block</h3><table class="mini-table"><tr><td style="color:var(--muted)">Session</td><td style="text-align:right;color:var(--muted)">Close</td><td style="text-align:right;color:var(--muted)">VWAP</td></tr>'+
+       c.last5.map(function(cl,i){return '<tr><td>T-'+(4-i)+'</td><td style="text-align:right">'+cl.toFixed(2)+'</td><td style="text-align:right;color:var(--violet)">'+c.vwap5[i].toFixed(2)+'</td></tr>';}).join("")+'</table></div>'+
+     // balance sheet
+     '<div class="panel col-4"><h3>Balance sheet · MRQ</h3>'+
+       '<div class="kv"><span class="k">Cash &amp; equivalents</span><span class="v up">'+fmtMoney(c.cash)+'</span></div>'+
+       '<div class="kv"><span class="k">Total debt</span><span class="v">'+fmtMoney(c.debt)+'</span></div>'+
+       '<div class="kv"><span class="k">Net cash</span><span class="v '+chgCls(c.cash-c.debt)+'">'+fmtMoney(c.cash-c.debt)+'</span></div>'+
+       '<div style="font-size:10px;color:var(--muted);margin-top:8px">As-of latest reported period · 13F-type holdings are quarterly</div></div>'+
+     // analyst
+     '<div class="panel col-4"><h3>Analyst coverage</h3>'+
+       '<div class="kv"><span class="k">Consensus</span><span class="v" style="color:var(--green)">'+c.analyst.rating+'</span></div>'+
+       '<div class="kv"><span class="k">PT avg</span><span class="v">'+c.analyst.avg.toFixed(2)+'</span></div>'+
+       '<div class="kv"><span class="k">PT range</span><span class="v">'+c.analyst.low.toFixed(2)+' – '+c.analyst.high.toFixed(2)+'</span></div>'+
+       '<div style="font-size:11px;color:var(--muted);margin-top:8px">'+c.analyst.note+'</div></div>'+
+     // last financing
+     '<div class="panel col-4"><h3>Last financing</h3>'+
+       '<div style="font-size:14px;margin-bottom:6px">$'+c.fin.amt+'M '+c.fin.type+'</div>'+
+       '<div style="color:var(--muted);font-size:11px">'+c.fin.mo+' '+c.fin.yr+' · best-effort from capital-raise filings</div>'+
+       '<a class="news-item" href="#" onclick="return false" style="color:var(--cyan);font-size:11px;margin-top:8px">View source filing →</a></div>'+
+     // holders
+     '<div class="panel col-6"><h3>Top 10 institutional holders <span style="color:var(--muted);font-weight:400">(quarterly 13F)</span></h3>'+
+       c.holders.map(function(h){return '<div class="holder-row"><span>'+h.n+'</span><span style="color:var(--cyan)">'+h.pct.toFixed(2)+'%</span></div>';}).join("")+'</div>'+
+     // news
+     '<div class="panel col-6"><h3>Latest news</h3>'+
+       c.news.map(function(n){return '<a class="news-item" href="#" onclick="return false"><div class="nd">'+n.d+'</div><div class="nh">'+n.h+'</div></a>';}).join("")+'</div>'+
+   '</div>'+
+   '<div class="footnote">Cap IQ-sourced fields shown live while connected. Demo data only — no real market data.</div>';
+  drawChart(c);
+}
+function drawChart(c){
+  var cv=$("chartCv");if(!cv)return;var dpr=window.devicePixelRatio||1;
+  var W=cv.clientWidth,H=240;cv.width=W*dpr;cv.height=H*dpr;var x=cv.getContext("2d");x.scale(dpr,dpr);
+  x.clearRect(0,0,W,H);
+  var data=c.closes,n=data.length,min=Math.min.apply(null,data),max=Math.max.apply(null,data),pad=18;
+  var span=(max-min)||1;
+  function px(i){return pad+i*( (W-2*pad)/(n-1) );}
+  function py(v){return H-pad-((v-min)/span)*(H-2*pad);}
+  // grid
+  x.strokeStyle="rgba(255,255,255,.05)";x.lineWidth=1;
+  for(var g=0;g<=4;g++){var yy=pad+g*((H-2*pad)/4);x.beginPath();x.moveTo(pad,yy);x.lineTo(W-pad,yy);x.stroke();}
+  // area fill
+  var grad=x.createLinearGradient(0,pad,0,H-pad);
+  var upTrend=data[n-1]>=data[0];
+  grad.addColorStop(0, upTrend?"rgba(39,224,138,.28)":"rgba(255,77,94,.28)");
+  grad.addColorStop(1,"rgba(0,0,0,0)");
+  x.beginPath();x.moveTo(px(0),py(data[0]));
+  for(var i=1;i<n;i++)x.lineTo(px(i),py(data[i]));
+  x.lineTo(px(n-1),H-pad);x.lineTo(px(0),H-pad);x.closePath();x.fillStyle=grad;x.fill();
+  // line
+  x.beginPath();x.moveTo(px(0),py(data[0]));
+  for(i=1;i<n;i++)x.lineTo(px(i),py(data[i]));
+  x.strokeStyle=upTrend?"#27e08a":"#ff4d5e";x.lineWidth=2;x.shadowColor=x.strokeStyle;x.shadowBlur=10;x.stroke();x.shadowBlur=0;
+  // last point
+  x.beginPath();x.arc(px(n-1),py(data[n-1]),3.5,0,6.28);x.fillStyle="#fff";x.fill();
+}
+
+/* ===================== EMAIL ===================== */
+var emailMode="general",emailCtx=null;
+function openEmail(tk){emailCtx=get(tk);emailMode="general";$("emailCo").textContent="· "+emailCtx.name;
+  $("tabGeneral").classList.add("on");$("tabTailored").classList.remove("on");
+  renderEmail();$("emailModal").classList.add("open");}
+function closeEmail(){$("emailModal").classList.remove("open");}
+function setEmailMode(m){emailMode=m;$("tabGeneral").classList.toggle("on",m==="general");$("tabTailored").classList.toggle("on",m==="tailored");renderEmail();}
+function renderEmail(){
+  var c=emailCtx,first=c.ceo.name.split(" ")[0];
+  $("emailSubject").value="A.G.P. — equity capital markets coverage for "+c.name;
+  var body;
+  var sig="Best regards,\n[Your Name] · [Title] · A.G.P. / Alliance Global Partners · [Phone] · [Email]";
+  if(emailMode==="tailored"){
+    body="Dear "+first+",\n\nI saw that "+c.name+" recently "+c.news[0].h.replace(c.name,"").trim().toLowerCase()+" — congratulations. It's a timely moment to introduce A.G.P. / Alliance Global Partners, a full-service investment bank and broker-dealer active in the small- and micro-cap equity capital markets.\n\nWe work with public companies like "+c.name+" across the full ECM toolkit — IPOs and follow-ons, registered directs and PIPEs, ATM programs, and equity lines (ELOCs) — alongside research and sales coverage. Given your recent $"+c.fin.amt+"M "+c.fin.type+", I'd welcome a brief call on how we're helping companies of your size access capital in today's market.\n\nWould you have 15–20 minutes over the next couple of weeks?\n\n"+sig;
+  } else {
+    body="Dear "+first+",\n\nI'm [Your Name], [Your Title] at A.G.P. / Alliance Global Partners, a full-service investment bank and broker-dealer active in the small- and micro-cap equity capital markets. We work with public companies like "+c.name+" across the full ECM toolkit — IPOs and follow-on offerings, registered directs and PIPEs, ATM programs, and equity lines (ELOCs) — alongside research and sales coverage.\n\nI'd welcome a brief introductory call to share how we're helping companies of "+c.name+"'s size access capital in today's market and to hear your priorities for the year ahead.\n\nWould you have 15–20 minutes over the next couple of weeks? Happy to work around your calendar.\n\n"+sig;
+  }
+  $("emailBody").value=body;
+}
+function copyEmail(){navigator.clipboard.writeText($("emailSubject").value+"\n\n"+$("emailBody").value).then(function(){toast("Draft copied to clipboard");},function(){toast("Copy failed");});}
+function downloadEml(){
+  var c=emailCtx,to=c.ceo.email||"";
+  var eml="To: "+to+"\r\nSubject: "+$("emailSubject").value+"\r\nX-Note: DRAFT — review only, do not auto-send\r\n\r\n"+$("emailBody").value;
+  var blob=new Blob([eml],{type:"message/rfc822"});var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=c.ticker+"_draft.eml";a.click();toast("Draft .eml downloaded");
+}
+function queueCsv(){
+  var c=emailCtx;var csv="company,ticker,contact,email,email_source,subject\n"+
+    '"'+c.name+'",'+c.ticker+',"'+c.ceo.name+'",'+(c.ceo.email||"")+','+c.esrc+',"'+$("emailSubject").value+'"\n';
+  var blob=new Blob([csv],{type:"text/csv"});var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="outreach_queue_"+c.ticker+".csv";a.click();toast("Added to outreach queue (CSV)");
+}
+
+/* ===================== FX starfield ===================== */
+(function(){var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var cv=$("fx"),x=cv.getContext("2d"),st=[],W,H;
+  function size(){W=cv.width=innerWidth;H=cv.height=innerHeight;st=[];var n=Math.min(90,Math.floor(W*H/20000));
+    for(var i=0;i<n;i++)st.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.2+.3,a:Math.random(),s:Math.random()*.012+.003});}
+  function draw(){x.clearRect(0,0,W,H);for(var i=0;i<st.length;i++){var s=st[i];s.a+=s.s;var tw=.3+Math.abs(Math.sin(s.a))*.6;
+    x.beginPath();x.arc(s.x,s.y,s.r,0,6.28);x.fillStyle="rgba(150,180,255,"+tw+")";x.fill();}requestAnimationFrame(draw);}
+  size();addEventListener("resize",function(){size();if(document.getElementById("v-dash").style.display!=="none"){}});
+  if(!reduce)draw();else{for(var i=0;i<st.length;i++){var s=st[i];x.beginPath();x.arc(s.x,s.y,s.r,0,6.28);x.fillStyle="rgba(150,180,255,.5)";x.fill();}}
+})();
+</script>
+</body>
+</html>
