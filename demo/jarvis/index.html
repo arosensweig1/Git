@@ -146,7 +146,11 @@
   .news-item .nh{font-size:12px}
   .holder-row{display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0}
   canvas.chart{width:100%;height:240px;display:block}
-  .chart-meta{font-size:10px;color:var(--muted);margin-top:6px;display:flex;gap:14px}
+  .chart-meta{font-size:10px;color:var(--muted);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap}
+  .tf-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .tf{padding:4px 12px;border-radius:7px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:11px;font-family:var(--mono)}
+  .tf:hover{color:var(--cyan);border-color:var(--cyan)}
+  .tf.on{background:var(--cyan);color:#04050a;border-color:var(--cyan);font-weight:700}
 
   /* MODAL */
   .modal-bg{position:fixed;inset:0;background:rgba(2,3,7,.74);backdrop-filter:blur(4px);z-index:100;display:none;
@@ -342,11 +346,19 @@ function buildCompany(row){
   function email(p){if(esrc==="manual")return "";var fn=p.name.split(" ")[0].toLowerCase(),ln=p.name.split(" ")[1].toLowerCase();return (esrc==="guessed"?fn[0]+ln:fn+"."+ln)+"@"+domain;}
   ceo.title="Chief Executive Officer";cfo.title="Chief Financial Officer";
   ceo.email=email(ceo);cfo.email=email(cfo);
-  // 30d price series
-  var closes=[],p0=price*(0.7+r()*0.5);for(var i=0;i<30;i++){p0=Math.max(0.4,p0*(1+(r()-0.5)*0.08));closes.push(+p0.toFixed(2));}
-  closes[29]=price;
+  // ~1Y daily series (close + volume), newest last
+  var TD=252,series=[],p0=price*(0.55+r()*0.45),baseVol=(0.3+r()*4)*1e6,today=new Date();
+  for(var i=TD-1;i>=0;i--){
+    p0=Math.max(0.4,p0*(1+(r()-0.5)*0.06));
+    var vol=Math.round(baseVol*(0.5+r()*1.3));
+    series.push({d:new Date(today.getTime()-i*86400000),close:+p0.toFixed(2),vol:vol});
+  }
+  series[series.length-1].close=price;
+  var closes=series.map(function(s){return s.close;});
   var last5=closes.slice(-5);
   var vwap5=last5.map(function(c){return +(c*(0.985+r()*0.03)).toFixed(2);});
+  // 12-month cash burn (demo)
+  var burn12=Math.round((2+r()*38)*1e6);
   // holders
   var instNames=["Vanguard Grp","BlackRock Inc","State Street","Renaissance Tech","Geode Capital","Susquehanna","Citadel Advisors","Millennium Mgmt","Point72","D.E. Shaw"];
   var holders=instNames.map(function(n){return {n:n,pct:+(r()*9+0.3).toFixed(2)};}).sort(function(a,b){return b.pct-a.pct;});
@@ -375,7 +387,8 @@ function buildCompany(row){
   else {source_set="B";reason="Sub-$500M "+exch+" small-cap";}
   return {name:name,ticker:tk,exchange:exch,sector:sector,price:price,mktcap:mktcap,chg:chg,
     ceo:ceo,cfo:cfo,esrc:esrc,domain:domain,closes:closes,last5:last5,vwap5:vwap5,holders:holders,
-    cash:cash,debt:debt,fin:fin,news:news,analyst:analyst,source_set:source_set,reason:reason,banker:banker};
+    cash:cash,debt:debt,fin:fin,news:news,analyst:analyst,source_set:source_set,reason:reason,banker:banker,
+    series:series,burn12:burn12};
 }
 var COMPANIES=SEED.map(buildCompany);
 
@@ -383,6 +396,9 @@ var COMPANIES=SEED.map(buildCompany);
 function $(id){return document.getElementById(id);}
 function fmtCap(v){if(v>=1e9)return "$"+(v/1e9).toFixed(2)+"B";if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";return "$"+v;}
 function fmtMoney(v){return "$"+v.toLocaleString("en-US");}
+function fmtVol(v){if(v>=1e9)return (v/1e9).toFixed(2)+"B";if(v>=1e6)return (v/1e6).toFixed(2)+"M";if(v>=1e3)return (v/1e3).toFixed(0)+"K";return ""+v;}
+function fmtDate(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+var TF_MAP={"1D":2,"1W":5,"1M":21,"3M":63,"6M":126,"1Y":252};
 function chgCls(c){return c>=0?"up":"down";}
 function chgStr(c){return (c>=0?"+":"")+c.toFixed(2)+"%";}
 function toast(msg){var t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove("show");},2200);}
@@ -480,6 +496,18 @@ function openDash(tk){
   function emailLine(p){if(!p.email)return '<span style="color:var(--muted)">— manual entry —</span>';
     var cls=c.esrc;var warn=c.esrc==="guessed"?' <span style="color:var(--amber)">⚠ UNVERIFIED</span>':'';
     return '<span class="'+cls+'" style="color:var(--cyan)">'+p.email+'</span>'+warn;}
+  // cash-burn / runway
+  var netCash=c.cash-c.debt, monthlyBurn=Math.round(c.burn12/12), runway=monthlyBurn>0?(netCash/monthlyBurn):null;
+  // price & volume by period
+  var nowBar=c.series[c.series.length-1];
+  var periodRows=Object.keys(TF_MAP).map(function(lbl){
+    var N=TF_MAP[lbl], idx=Math.max(0,c.series.length-1-N), b=c.series[idx];
+    var pc=((nowBar.close-b.close)/b.close*100);
+    return '<tr><td>'+lbl+'</td><td style="color:var(--muted)">'+fmtDate(b.d)+'</td>'+
+      '<td style="text-align:right">'+b.close.toFixed(2)+'</td>'+
+      '<td style="text-align:right" class="'+chgCls(pc)+'">'+chgStr(pc)+'</td>'+
+      '<td style="text-align:right">'+fmtVol(b.vol)+'</td></tr>';
+  }).join("");
   d.innerHTML=
    '<button class="btn" onclick="backToList()">← Back to blotter</button>'+
    '<div class="dash-head" style="margin-top:14px">'+
@@ -491,8 +519,10 @@ function openDash(tk){
    '<div style="margin:10px 0"><button class="btn primary" onclick="openEmail(\''+c.ticker+'\')">✉ Draft email</button></div>'+
    '<div class="grid-dash">'+
      // chart
-     '<div class="panel col-8"><h3>Price · 30 sessions</h3><canvas class="chart" id="chartCv"></canvas>'+
-       '<div class="chart-meta"><span>Last 5 close: '+c.last5.map(function(x){return x.toFixed(2);}).join(" · ")+'</span></div></div>'+
+     '<div class="panel col-8"><h3>Price &amp; volume</h3>'+
+       '<div class="tf-row" id="tfRow">'+["1D","1W","1M","3M","6M","1Y"].map(function(t){return '<button class="tf'+(t==="1Y"?" on":"")+'" onclick="setTimeframe(\''+t+'\')">'+t+'</button>';}).join("")+'</div>'+
+       '<canvas class="chart" id="chartCv"></canvas>'+
+       '<div class="chart-meta" id="chartMeta"></div></div>'+
      // execs + email
      '<div class="panel col-4"><h3>Coverage contacts</h3>'+
        '<div class="exec"><div><div>'+c.ceo.name+'</div><div class="role">CHIEF EXECUTIVE OFFICER</div></div></div>'+
@@ -500,15 +530,26 @@ function openDash(tk){
        '<div class="exec"><div><div>'+c.cfo.name+'</div><div class="role">CHIEF FINANCIAL OFFICER</div></div></div>'+
        '<div style="font-size:11.5px;margin-top:4px">'+emailLine(c.cfo)+' <span style="color:var(--muted)">['+c.esrc+']</span></div>'+
      '</div>'+
+     // price & volume by period
+     '<div class="panel col-12"><h3>Price &amp; volume by period</h3>'+
+       '<table class="mini-table"><tr>'+
+         '<td style="color:var(--muted)">Period</td><td style="color:var(--muted)">As-of date</td>'+
+         '<td style="text-align:right;color:var(--muted)">Price</td>'+
+         '<td style="text-align:right;color:var(--muted)">Change</td>'+
+         '<td style="text-align:right;color:var(--muted)">Volume</td></tr>'+
+         periodRows+'</table></div>'+
      // price block
-     '<div class="panel col-4"><h3>Price block</h3><table class="mini-table"><tr><td style="color:var(--muted)">Session</td><td style="text-align:right;color:var(--muted)">Close</td><td style="text-align:right;color:var(--muted)">VWAP</td></tr>'+
+     '<div class="panel col-4"><h3>Price block · last 5 sessions</h3><table class="mini-table"><tr><td style="color:var(--muted)">Session</td><td style="text-align:right;color:var(--muted)">Close</td><td style="text-align:right;color:var(--muted)">VWAP</td></tr>'+
        c.last5.map(function(cl,i){return '<tr><td>T-'+(4-i)+'</td><td style="text-align:right">'+cl.toFixed(2)+'</td><td style="text-align:right;color:var(--violet)">'+c.vwap5[i].toFixed(2)+'</td></tr>';}).join("")+'</table></div>'+
      // balance sheet
      '<div class="panel col-4"><h3>Balance sheet · MRQ</h3>'+
        '<div class="kv"><span class="k">Cash &amp; equivalents</span><span class="v up">'+fmtMoney(c.cash)+'</span></div>'+
        '<div class="kv"><span class="k">Total debt</span><span class="v">'+fmtMoney(c.debt)+'</span></div>'+
-       '<div class="kv"><span class="k">Net cash</span><span class="v '+chgCls(c.cash-c.debt)+'">'+fmtMoney(c.cash-c.debt)+'</span></div>'+
-       '<div style="font-size:10px;color:var(--muted);margin-top:8px">As-of latest reported period · 13F-type holdings are quarterly</div></div>'+
+       '<div class="kv"><span class="k">Net cash</span><span class="v '+chgCls(netCash)+'">'+fmtMoney(netCash)+'</span></div>'+
+       '<div class="kv"><span class="k">12-mo cash burn</span><span class="v down">'+fmtMoney(c.burn12)+'</span></div>'+
+       '<div class="kv"><span class="k">Monthly burn (burn ÷ 12)</span><span class="v">'+fmtMoney(monthlyBurn)+'</span></div>'+
+       '<div class="kv"><span class="k">Runway (net cash ÷ monthly burn)</span><span class="v '+(runway!==null&&runway<12?"down":"up")+'">'+(runway!==null?runway.toFixed(1)+" mo":"n/a")+'</span></div>'+
+       '<div style="font-size:10px;color:var(--muted);margin-top:8px">As-of latest reported period · burn is trailing-12mo · 13F holdings are quarterly</div></div>'+
      // analyst
      '<div class="panel col-4"><h3>Analyst coverage</h3>'+
        '<div class="kv"><span class="k">Consensus</span><span class="v" style="color:var(--green)">'+c.analyst.rating+'</span></div>'+
@@ -528,33 +569,50 @@ function openDash(tk){
        c.news.map(function(n){return '<a class="news-item" href="#" onclick="return false"><div class="nd">'+n.d+'</div><div class="nh">'+n.h+'</div></a>';}).join("")+'</div>'+
    '</div>'+
    '<div class="footnote">Cap IQ-sourced fields shown live while connected. Demo data only — no real market data.</div>';
-  drawChart(c);
+  dashCo=c;currentTf="1Y";drawChart(c,currentTf);
 }
-function drawChart(c){
-  var cv=$("chartCv");if(!cv)return;var dpr=window.devicePixelRatio||1;
-  var W=cv.clientWidth,H=240;cv.width=W*dpr;cv.height=H*dpr;var x=cv.getContext("2d");x.scale(dpr,dpr);
-  x.clearRect(0,0,W,H);
-  var data=c.closes,n=data.length,min=Math.min.apply(null,data),max=Math.max.apply(null,data),pad=18;
-  var span=(max-min)||1;
-  function px(i){return pad+i*( (W-2*pad)/(n-1) );}
-  function py(v){return H-pad-((v-min)/span)*(H-2*pad);}
+var dashCo=null,currentTf="1Y";
+function setTimeframe(lbl){
+  currentTf=lbl;var row=$("tfRow");
+  if(row)Array.prototype.forEach.call(row.children,function(b){b.classList.toggle("on",b.textContent===lbl);});
+  if(dashCo)drawChart(dashCo,lbl);
+}
+function drawChart(c,label){
+  var cv=$("chartCv");if(!cv)return;
+  var N=TF_MAP[label]||252,data=c.series.slice(-Math.min(N,c.series.length));
+  if(data.length<2)data=c.series.slice(-2);
+  var dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=240;
+  cv.width=W*dpr;cv.height=H*dpr;var x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+  var pad=18,volH=52,pBot=H-pad-volH-8,pTop=pad,n=data.length;
+  var closes=data.map(function(d){return d.close;});
+  var min=Math.min.apply(null,closes),max=Math.max.apply(null,closes),span=(max-min)||1;
+  function px(i){return pad+i*((W-2*pad)/(n-1));}
+  function py(v){return pBot-((v-min)/span)*(pBot-pTop);}
   // grid
   x.strokeStyle="rgba(255,255,255,.05)";x.lineWidth=1;
-  for(var g=0;g<=4;g++){var yy=pad+g*((H-2*pad)/4);x.beginPath();x.moveTo(pad,yy);x.lineTo(W-pad,yy);x.stroke();}
-  // area fill
-  var grad=x.createLinearGradient(0,pad,0,H-pad);
-  var upTrend=data[n-1]>=data[0];
-  grad.addColorStop(0, upTrend?"rgba(39,224,138,.28)":"rgba(255,77,94,.28)");
-  grad.addColorStop(1,"rgba(0,0,0,0)");
-  x.beginPath();x.moveTo(px(0),py(data[0]));
-  for(var i=1;i<n;i++)x.lineTo(px(i),py(data[i]));
-  x.lineTo(px(n-1),H-pad);x.lineTo(px(0),H-pad);x.closePath();x.fillStyle=grad;x.fill();
-  // line
-  x.beginPath();x.moveTo(px(0),py(data[0]));
-  for(i=1;i<n;i++)x.lineTo(px(i),py(data[i]));
+  for(var g=0;g<=4;g++){var yy=pTop+g*((pBot-pTop)/4);x.beginPath();x.moveTo(pad,yy);x.lineTo(W-pad,yy);x.stroke();}
+  // volume bars
+  var maxVol=Math.max.apply(null,data.map(function(d){return d.vol;}))||1;
+  var bw=Math.max(1,(W-2*pad)/n*0.7);
+  for(var i=0;i<n;i++){var vh=(data[i].vol/maxVol)*volH,up=i===0||data[i].close>=data[i-1].close;
+    x.fillStyle=up?"rgba(39,224,138,.4)":"rgba(255,77,94,.4)";
+    x.fillRect(px(i)-bw/2,H-pad-vh,bw,vh);}
+  // price area + line
+  var upTrend=closes[n-1]>=closes[0];
+  var grad=x.createLinearGradient(0,pTop,0,pBot);
+  grad.addColorStop(0,upTrend?"rgba(39,224,138,.28)":"rgba(255,77,94,.28)");grad.addColorStop(1,"rgba(0,0,0,0)");
+  x.beginPath();x.moveTo(px(0),py(closes[0]));for(i=1;i<n;i++)x.lineTo(px(i),py(closes[i]));
+  x.lineTo(px(n-1),pBot);x.lineTo(px(0),pBot);x.closePath();x.fillStyle=grad;x.fill();
+  x.beginPath();x.moveTo(px(0),py(closes[0]));for(i=1;i<n;i++)x.lineTo(px(i),py(closes[i]));
   x.strokeStyle=upTrend?"#27e08a":"#ff4d5e";x.lineWidth=2;x.shadowColor=x.strokeStyle;x.shadowBlur=10;x.stroke();x.shadowBlur=0;
-  // last point
-  x.beginPath();x.arc(px(n-1),py(data[n-1]),3.5,0,6.28);x.fillStyle="#fff";x.fill();
+  x.beginPath();x.arc(px(n-1),py(closes[n-1]),3.5,0,6.28);x.fillStyle="#fff";x.fill();
+  // meta
+  var meta=$("chartMeta");
+  if(meta){var ch=((closes[n-1]-closes[0])/closes[0]*100);
+    meta.innerHTML='<span>'+label+' change: <b class="'+chgCls(ch)+'">'+chgStr(ch)+'</b></span>'+
+      '<span>Last vol: '+fmtVol(data[n-1].vol)+'</span>'+
+      '<span>Range: '+min.toFixed(2)+' – '+max.toFixed(2)+'</span>'+
+      '<span style="color:var(--muted)">'+fmtDate(data[0].d)+' → '+fmtDate(data[n-1].d)+'</span>';}
 }
 
 /* ===================== EMAIL ===================== */

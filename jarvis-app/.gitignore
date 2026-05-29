@@ -1,0 +1,10 @@
+.env
+*.eml
+*.csv
+Deal_CLoud.xlsx
+__pycache__/
+*.pyc
+.cache/
+*.sqlite
+*.parquet
+jarvis_run.log
