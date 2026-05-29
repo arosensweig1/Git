@@ -378,6 +378,18 @@ function buildCompany(row){
   // analyst
   var avg=+(price*(1.05+r()*0.6)).toFixed(2);
   var analyst={high:+(avg*1.25).toFixed(2),low:+(avg*0.7).toFixed(2),avg:avg,rating:["Strong Buy","Buy","Hold","Buy","Overweight"][Math.floor(r()*5)],note:(r()>0.5?"Upgrade":"Reiterate")+" — "+["Cantor","Roth","Maxim","Lake Street","B. Riley"][Math.floor(r()*5)]};
+  // covering banks (research coverage)
+  var bankPool=["Cantor Fitzgerald","Roth MKM","Maxim Group","Lake Street Capital","B. Riley Securities","H.C. Wainwright","Oppenheimer","Needham & Co","Craig-Hallum","Stifel","Piper Sandler","Canaccord Genuity"];
+  var bankRatings=["Buy","Strong Buy","Overweight","Outperform","Hold"];
+  var nb=3+Math.floor(r()*3),banks=[],usedB={};
+  while(banks.length<nb){var bn=bankPool[Math.floor(r()*bankPool.length)];if(usedB[bn])continue;usedB[bn]=1;
+    banks.push({n:bn,rating:bankRatings[Math.floor(r()*bankRatings.length)],pt:+(avg*(0.82+r()*0.55)).toFixed(2)});}
+  // financing source filings (EDGAR best-effort search links)
+  var isForeign=r()>0.72; fin.transForm=isForeign?"6-K":"8-K";
+  fin.prosForm=["424B5","424B3","S-1","F-1"][Math.floor(r()*4)];
+  var encN=encodeURIComponent(name);
+  fin.prosUrl="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company="+encN+"&type="+fin.prosForm+"&owner=include&count=40";
+  fin.transUrl="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company="+encN+"&type="+fin.transForm+"&owner=include&count=40";
   // source set / reason
   var inCRM=r()>0.45;
   var months=Math.floor(25+r()*40);
@@ -388,7 +400,7 @@ function buildCompany(row){
   return {name:name,ticker:tk,exchange:exch,sector:sector,price:price,mktcap:mktcap,chg:chg,
     ceo:ceo,cfo:cfo,esrc:esrc,domain:domain,closes:closes,last5:last5,vwap5:vwap5,holders:holders,
     cash:cash,debt:debt,fin:fin,news:news,analyst:analyst,source_set:source_set,reason:reason,banker:banker,
-    series:series,burn12:burn12};
+    series:series,burn12:burn12,banks:banks};
 }
 var COMPANIES=SEED.map(buildCompany);
 
@@ -498,6 +510,9 @@ function openDash(tk){
     return '<span class="'+cls+'" style="color:var(--cyan)">'+p.email+'</span>'+warn;}
   // cash-burn / runway
   var netCash=c.cash-c.debt, monthlyBurn=Math.round(c.burn12/12), runway=monthlyBurn>0?(netCash/monthlyBurn):null;
+  // 5-day averages
+  var avgClose=c.last5.reduce(function(a,b){return a+b;},0)/c.last5.length;
+  var avgVwap=c.vwap5.reduce(function(a,b){return a+b;},0)/c.vwap5.length;
   // price & volume by period
   var nowBar=c.series[c.series.length-1];
   var periodRows=Object.keys(TF_MAP).map(function(lbl){
@@ -539,8 +554,10 @@ function openDash(tk){
          '<td style="text-align:right;color:var(--muted)">Volume</td></tr>'+
          periodRows+'</table></div>'+
      // price block
-     '<div class="panel col-4"><h3>Price block · last 5 sessions</h3><table class="mini-table"><tr><td style="color:var(--muted)">Session</td><td style="text-align:right;color:var(--muted)">Close</td><td style="text-align:right;color:var(--muted)">VWAP</td></tr>'+
-       c.last5.map(function(cl,i){return '<tr><td>T-'+(4-i)+'</td><td style="text-align:right">'+cl.toFixed(2)+'</td><td style="text-align:right;color:var(--violet)">'+c.vwap5[i].toFixed(2)+'</td></tr>';}).join("")+'</table></div>'+
+     '<div class="panel col-4"><h3>Price &amp; 5-day VWAP</h3><table class="mini-table"><tr><td style="color:var(--muted)">Session</td><td style="text-align:right;color:var(--muted)">Close</td><td style="text-align:right;color:var(--muted)">VWAP</td></tr>'+
+       c.last5.map(function(cl,i){return '<tr><td>T-'+(4-i)+'</td><td style="text-align:right">'+cl.toFixed(2)+'</td><td style="text-align:right;color:var(--violet)">'+c.vwap5[i].toFixed(2)+'</td></tr>';}).join("")+
+       '<tr style="border-top:1px solid var(--border2)"><td style="color:var(--cyan)">5-day avg</td><td style="text-align:right;color:var(--cyan);font-weight:700">'+avgClose.toFixed(2)+'</td><td style="text-align:right;color:var(--violet);font-weight:700">'+avgVwap.toFixed(2)+'</td></tr>'+
+       '</table></div>'+
      // balance sheet
      '<div class="panel col-4"><h3>Balance sheet · MRQ</h3>'+
        '<div class="kv"><span class="k">Cash &amp; equivalents</span><span class="v up">'+fmtMoney(c.cash)+'</span></div>'+
@@ -548,19 +565,23 @@ function openDash(tk){
        '<div class="kv"><span class="k">Net cash</span><span class="v '+chgCls(netCash)+'">'+fmtMoney(netCash)+'</span></div>'+
        '<div class="kv"><span class="k">12-mo cash burn</span><span class="v down">'+fmtMoney(c.burn12)+'</span></div>'+
        '<div class="kv"><span class="k">Monthly burn (burn ÷ 12)</span><span class="v">'+fmtMoney(monthlyBurn)+'</span></div>'+
-       '<div class="kv"><span class="k">Runway (net cash ÷ monthly burn)</span><span class="v '+(runway!==null&&runway<12?"down":"up")+'">'+(runway!==null?runway.toFixed(1)+" mo":"n/a")+'</span></div>'+
+       '<div class="kv"><span class="k">Months of cash runway</span><span class="v '+(runway!==null&&runway<12?"down":"up")+'" style="font-weight:700">'+(runway!==null?runway.toFixed(1)+" mo":"n/a")+'</span></div>'+
        '<div style="font-size:10px;color:var(--muted);margin-top:8px">As-of latest reported period · burn is trailing-12mo · 13F holdings are quarterly</div></div>'+
-     // analyst
+     // analyst + covering banks
      '<div class="panel col-4"><h3>Analyst coverage</h3>'+
        '<div class="kv"><span class="k">Consensus</span><span class="v" style="color:var(--green)">'+c.analyst.rating+'</span></div>'+
        '<div class="kv"><span class="k">PT avg</span><span class="v">'+c.analyst.avg.toFixed(2)+'</span></div>'+
        '<div class="kv"><span class="k">PT range</span><span class="v">'+c.analyst.low.toFixed(2)+' – '+c.analyst.high.toFixed(2)+'</span></div>'+
-       '<div style="font-size:11px;color:var(--muted);margin-top:8px">'+c.analyst.note+'</div></div>'+
-     // last financing
+       '<div style="font-size:10.5px;letter-spacing:.12em;color:var(--muted);margin:12px 0 4px">COVERING BANKS ('+c.banks.length+')</div>'+
+       c.banks.map(function(b){return '<div class="holder-row"><span>'+b.n+'</span><span><span style="color:var(--green)">'+b.rating+'</span> <span style="color:var(--muted)">PT '+b.pt.toFixed(2)+'</span></span></div>';}).join("")+
+     '</div>'+
+     // last financing + EDGAR transaction docs
      '<div class="panel col-4"><h3>Last financing</h3>'+
-       '<div style="font-size:14px;margin-bottom:6px">$'+c.fin.amt+'M '+c.fin.type+'</div>'+
-       '<div style="color:var(--muted);font-size:11px">'+c.fin.mo+' '+c.fin.yr+' · best-effort from capital-raise filings</div>'+
-       '<a class="news-item" href="#" onclick="return false" style="color:var(--cyan);font-size:11px;margin-top:8px">View source filing →</a></div>'+
+       '<div style="font-size:14px;margin-bottom:4px">$'+c.fin.amt+'M '+c.fin.type+'</div>'+
+       '<div style="color:var(--muted);font-size:11px;margin-bottom:10px">'+c.fin.mo+' '+c.fin.yr+' · best-effort from capital-raise filings</div>'+
+       '<a class="news-item" href="'+c.fin.prosUrl+'" target="_blank" rel="noopener" style="color:var(--cyan);font-size:11.5px">↗ Prospectus ('+c.fin.prosForm+') · EDGAR</a>'+
+       '<a class="news-item" href="'+c.fin.transUrl+'" target="_blank" rel="noopener" style="color:var(--cyan);font-size:11.5px">↗ Transaction doc ('+c.fin.transForm+') · EDGAR</a>'+
+       '<div style="font-size:9.5px;color:var(--muted);margin-top:6px">Demo links open an EDGAR company search; the live app resolves the exact accession via EDGAR full-text search.</div></div>'+
      // holders
      '<div class="panel col-6"><h3>Top 10 institutional holders <span style="color:var(--muted);font-weight:400">(quarterly 13F)</span></h3>'+
        c.holders.map(function(h){return '<div class="holder-row"><span>'+h.n+'</span><span style="color:var(--cyan)">'+h.pct.toFixed(2)+'%</span></div>';}).join("")+'</div>'+

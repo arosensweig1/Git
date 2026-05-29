@@ -88,8 +88,9 @@ header row 3, non-breaking-space dates).
 ## Files
 `app.py` (gateway + pages) · `auth.py` (login) · `connections.py` (connect screen) ·
 `data_market.py` (CapIQProvider + field map + connection test) · `data_crm.py` (DealCloud +
-Excel parser) · `pipeline.py` (target list) · `emailer.py` (drafts/export, never sends) ·
-`email_finder.py` (optional enrichment) · `make_hash.py` (password hasher).
+Excel parser) · `edgar.py` (SEC filings: prospectus + 8-K/6-K, no key) · `pipeline.py`
+(target list) · `emailer.py` (drafts/export, never sends) · `email_finder.py` (optional
+enrichment) · `make_hash.py` (password hasher).
 
 ## Limitations
 API creds ≠ web-portal logins (separate SSO). Set B completeness is bounded by your saved

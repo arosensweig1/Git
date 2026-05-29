@@ -102,6 +102,26 @@ elif page == "Verify connection & pulls":
         if rows:
             st.dataframe(pd.DataFrame(rows).head(20), use_container_width=True, hide_index=True)
 
+    st.divider()
+    st.markdown("**EDGAR filings test** (public — no credentials needed)")
+    etk = st.text_input("Ticker for EDGAR lookup", "AAPL")
+    if st.button("Test EDGAR (financing docs)"):
+        import edgar
+        try:
+            docs = edgar.financing_docs(etk)
+            recent = edgar.recent_filings(etk, limit=8)
+            for label, d in (("Latest prospectus", docs["prospectus"]),
+                             ("Latest 8-K/6-K", docs["transaction"])):
+                if d:
+                    st.markdown(f"- **{label}** ({d['form']}, {d['date']}): [{d['url']}]({d['url']})")
+                else:
+                    st.markdown(f"- {label}: none found")
+            if recent:
+                st.dataframe(pd.DataFrame(recent)[["form", "date", "url"]],
+                             use_container_width=True, hide_index=True)
+        except Exception as e:  # noqa: BLE001
+            st.error(f"EDGAR lookup failed: {e}")
+
 # ----------------------------------------------------------------------------
 elif page == "Blotter":
     st.subheader("Blotter")

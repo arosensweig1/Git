@@ -44,6 +44,7 @@ CAPIQ_FIELD_MAP = {
     "pt_low":              "IQ_PRICETARGET_LOW",        # confirm
     "pt_avg":              "IQ_PRICETARGET_AVG",        # confirm
     "consensus_rating":    "IQ_RATING_CONSENSUS",       # confirm
+    "covering_analysts":   "IQ_PLACEHOLDER_COVERAGE",   # research providers/banks — confirm
 }
 
 
