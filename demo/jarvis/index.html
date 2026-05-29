@@ -179,59 +179,12 @@
 <body>
 <canvas id="fx"></canvas><div class="orb c"></div><div class="orb m"></div>
 
-<!-- ========== LOGIN ========== -->
-<div class="center-screen active" id="s-login">
-  <div class="auth-card">
-    <span class="brand grad">JARVIS</span>
-    <div class="auth-sub">ECM PROSPECTING TERMINAL · A.G.P.</div>
-    <div class="warnbar">⚠ DEMO BUILD — cosmetic login only, no real authentication or live data. Never use this static page to gate real broker-dealer data or enter real credentials.</div>
-    <form id="loginForm" autocomplete="off">
-      <label class="fld"><span>Username</span><input id="u" type="text" placeholder="username" /></label>
-      <label class="fld"><span>Password</span><input id="p" type="password" placeholder="••••••••" /></label>
-      <button class="btn primary" style="width:100%;justify-content:center" type="submit">Authenticate →</button>
-      <div class="err" id="loginErr"></div>
-    </form>
-    <div class="demohint">Demo access — user <code>demo</code> · pass <code>demo</code></div>
-  </div>
-</div>
-
-<!-- ========== CONNECT ========== -->
-<div class="center-screen" id="s-connect">
-  <div class="connect-wrap">
-    <h2>Connect your data sources</h2>
-    <div class="auth-sub">API credentials are provisioned separately by your firm admin / S&amp;P rep — not the web-portal login.</div>
-    <div class="connect-grid">
-      <div class="vcard">
-        <div class="vhead"><span class="vname">Capital IQ</span><span class="pill" id="capiqStatus"><span class="dot a"></span> NOT CONNECTED</span></div>
-        <label class="fld"><span>Base URL</span><input placeholder="https://api.capitaliq..." /></label>
-        <label class="fld"><span>API Username</span><input placeholder="api user" /></label>
-        <label class="fld"><span>API Password / Key</span><input type="password" placeholder="••••••••" /></label>
-        <button class="btn" style="width:100%;justify-content:center" onclick="demoConnect('capiq')">Connect Cap IQ</button>
-        <div class="ref">Sole market-data source. Portal (reference only): <a href="https://www.capitaliq.spglobal.com/web/login" target="_blank" rel="noopener">capitaliq.spglobal.com</a></div>
-      </div>
-      <div class="vcard">
-        <div class="vhead"><span class="vname">DealCloud</span><span class="pill" id="dcStatus"><span class="dot a"></span> NOT CONNECTED</span></div>
-        <label class="fld"><span>Site URL</span><input placeholder="https://yourfirm.dealcloud.com" /></label>
-        <label class="fld"><span>Client ID</span><input placeholder="client id" /></label>
-        <label class="fld"><span>Client Secret</span><input type="password" placeholder="••••••••" /></label>
-        <button class="btn" style="width:100%;justify-content:center" onclick="demoConnect('dc')">Connect DealCloud</button>
-        <div class="ref">CRM coverage (or upload <code>Deal_CLoud.xlsx</code>). Portal: <a href="https://app.dealcloud.com/Account/login" target="_blank" rel="noopener">app.dealcloud.com</a></div>
-      </div>
-    </div>
-    <div style="text-align:center">
-      <button class="btn primary" id="enterBtn" disabled onclick="enterJarvis()">Enter Jarvis →</button>
-      <div class="demohint">Demo mode: clicking either "Connect" simulates a successful API handshake.</div>
-    </div>
-  </div>
-</div>
-
 <!-- ========== APP ========== -->
-<div class="screen" id="s-app">
+<div class="screen active" id="s-app">
   <div class="topbar">
     <span class="brand grad">JARVIS</span>
     <div class="ticker-tape"><div class="tape-track" id="tape"></div></div>
     <span class="clock" id="clock"></span>
-    <button class="btn" style="padding:7px 12px" onclick="logout()">Logout</button>
   </div>
   <div class="statusbar">
     <span><span class="dot g blink"></span> CAP IQ: <b style="color:var(--green)">LIVE</b> <span id="lastUpd"></span></span>
@@ -414,28 +367,6 @@ var TF_MAP={"1D":2,"1W":5,"1M":21,"3M":63,"6M":126,"1Y":252};
 function chgCls(c){return c>=0?"up":"down";}
 function chgStr(c){return (c>=0?"+":"")+c.toFixed(2)+"%";}
 function toast(msg){var t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove("show");},2200);}
-
-/* ===================== SCREEN FLOW ===================== */
-function show(id){["s-login","s-connect"].forEach(function(s){var el=$(s);el.classList.toggle("active",s===id);});
-  $("s-app").classList.toggle("active",id==="s-app");}
-
-$("loginForm").addEventListener("submit",function(e){
-  e.preventDefault();
-  var u=$("u").value.trim().toLowerCase(),p=$("p").value;
-  if(u==="demo"&&p==="demo"){ $("loginErr").textContent=""; show("s-connect"); }
-  else { $("loginErr").textContent="Invalid demo credentials. Use demo / demo."; }
-});
-var conn={capiq:false,dc:false};
-function demoConnect(which){
-  conn[which]=true;
-  var el=$(which==="capiq"?"capiqStatus":"dcStatus");
-  el.innerHTML='<span class="dot g"></span> CONNECTED';
-  if(conn.capiq){ $("enterBtn").disabled=false; }
-}
-function enterJarvis(){ show("s-app"); startApp(); }
-function logout(){ conn={capiq:false,dc:false}; $("capiqStatus").innerHTML='<span class="dot a"></span> NOT CONNECTED';
-  $("dcStatus").innerHTML='<span class="dot a"></span> NOT CONNECTED'; $("enterBtn").disabled=true;
-  $("u").value="";$("p").value=""; show("s-login"); window.scrollTo(0,0); }
 
 /* ===================== APP START ===================== */
 var sortKey="mktcap",sortDir=1;
@@ -679,6 +610,9 @@ function queueCsv(){
   size();addEventListener("resize",function(){size();if(document.getElementById("v-dash").style.display!=="none"){}});
   if(!reduce)draw();else{for(var i=0;i<st.length;i++){var s=st[i];x.beginPath();x.arc(s.x,s.y,s.r,0,6.28);x.fillStyle="rgba(150,180,255,.5)";x.fill();}}
 })();
+
+/* ===================== BOOT ===================== */
+startApp();
 </script>
 </body>
 </html>
